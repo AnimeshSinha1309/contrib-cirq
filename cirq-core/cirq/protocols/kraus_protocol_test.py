@@ -206,3 +206,11 @@ def test_has_channel_when_decomposed(decomposed_cls):
     op = HasKrausWhenDecomposed(decomposed_cls).on(cirq.NamedQubit('test'))
     assert cirq.has_kraus(op)
     assert not cirq.has_kraus(op, allow_decompose=False)
+
+
+def test_serial_concatenation():
+    op = cirq.PhasedXZGate(axis_phase_exponent=-0.5, x_exponent=-0.5, z_exponent=1).on(
+        cirq.GridQubit(3, 3)
+    )
+    assert cirq.has_kraus(op)
+    assert cirq.kraus(op) is not None

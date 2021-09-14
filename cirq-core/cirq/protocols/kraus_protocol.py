@@ -107,13 +107,13 @@ class SupportsKraus(Protocol):
 
 @deprecated(deadline='v0.13', fix='use cirq.kraus instead')
 def channel(
-    val: Any, default: Any = RaiseTypeErrorIfNotProvided
+    val: Any, default: Any = RaiseTypeErrorIfNotProvided, allow_decompose: bool = True
 ) -> Union[Tuple[np.ndarray, ...], TDefault]:
-    return kraus(val, default=default)
+    return kraus(val, default=default, allow_decompose=allow_decompose)
 
 
 def kraus(
-    val: Any, default: Any = RaiseTypeErrorIfNotProvided
+    val: Any, default: Any = RaiseTypeErrorIfNotProvided, allow_decompose: bool = True
 ) -> Union[Tuple[np.ndarray, ...], TDefault]:
     r"""Returns a list of matrices describing the channel for the given value.
 
@@ -135,6 +135,13 @@ def kraus(
         default: Determines the fallback behavior when `val` doesn't have
             a channel. If `default` is not set, a TypeError is raised. If
             default is set to a value, that value is returned.
+        allow_decompose: Used by internal methods to stop redundant
+            decompositions from being performed (e.g. there's no need to
+            decompose an object to check if it is unitary as part of determining
+            if the object is a quantum channel, when the quantum channel check
+            will already be doing a more general decomposition check). Defaults
+            to True. When False, the decomposition strategy for determining
+            the result is skipped.
 
     Returns:
         If `val` has a `_kraus_` method and its result is not NotImplemented,
@@ -176,6 +183,11 @@ def kraus(
     channel_result = NotImplemented if channel_getter is None else channel_getter()
     if channel_result is not NotImplemented:
         return tuple(channel_result)
+
+    if allow_decompose:
+        operations, _, _ = _try_decompose_into_operations_and_qubits(val)
+        if operations is not None:
+            return np.concatenate([kraus(val) for val in operations])
 
     if default is not RaiseTypeErrorIfNotProvided:
         return default
@@ -246,4 +258,4 @@ def has_kraus(val: Any, *, allow_decompose: bool = True) -> bool:
             return all(has_kraus(val) for val in operations)
 
     # No has methods, use `_kraus_` or delegates instead.
-    return kraus(val, None) is not None
+    return kraus(val, None, allow_decompose=False) is not None
